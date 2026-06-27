@@ -1,0 +1,32 @@
+export type Category = {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  created_at: string;
+};
+
+export type Transaction = {
+  id: string;
+  user_id: string;
+  category_id: string | null;
+  amount: number;
+  occurred_on: string; // YYYY-MM-DD
+  note: string | null;
+  created_at: string;
+};
+
+export type TransactionWithCategory = Transaction & {
+  category: Pick<Category, "id" | "name" | "color"> | null;
+};
+
+export type BudgetPeriod = "daily" | "weekly" | "monthly";
+
+export type Budget = {
+  id: string;
+  user_id: string;
+  period: BudgetPeriod;
+  amount: number;
+  created_at: string;
+  updated_at: string;
+};

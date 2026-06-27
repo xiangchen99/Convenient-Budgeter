@@ -16,13 +16,11 @@ import {
 } from "@/components/ui/card";
 import { MonthNav } from "@/components/month-nav";
 import {
-  SpendOverTime,
+  LazySpendOverTime,
+  LazySpendByCategory,
   type DailyPoint,
-} from "@/components/charts/spend-over-time";
-import {
-  SpendByCategory,
   type CategorySlice,
-} from "@/components/charts/spend-by-category";
+} from "@/components/charts/lazy-dashboard-charts";
 import { BudgetProgressCards } from "@/components/charts/budget-progress";
 import { TransactionDialog } from "@/components/transaction-dialog";
 
@@ -67,11 +65,18 @@ export default async function DashboardPage({
     { data: dayTxnData },
     { data: weekTxnData },
   ] = await Promise.all([
-    supabase.from("categories").select("*").order("name"),
-    supabase.from("budgets").select("*"),
+    supabase
+      .from("categories")
+      .select("id, user_id, name, color, created_at")
+      .order("name"),
+    supabase
+      .from("budgets")
+      .select("id, user_id, period, amount, created_at, updated_at"),
     supabase
       .from("transactions")
-      .select("*, category:categories(id, name, color)")
+      .select(
+        "id, user_id, category_id, amount, occurred_on, note, created_at, category:categories(id, name, color)"
+      )
       .gte("occurred_on", startStr)
       .lte("occurred_on", endStr)
       .order("occurred_on", { ascending: false })
@@ -181,7 +186,7 @@ export default async function DashboardPage({
           <CardTitle className="text-base">Spending over time</CardTitle>
         </CardHeader>
         <CardContent className="px-2">
-          <SpendOverTime data={dailyPoints} />
+          <LazySpendOverTime data={dailyPoints} />
         </CardContent>
       </Card>
 
@@ -190,7 +195,7 @@ export default async function DashboardPage({
           <CardTitle className="text-base">By category</CardTitle>
         </CardHeader>
         <CardContent>
-          <SpendByCategory data={categorySlices} />
+          <LazySpendByCategory data={categorySlices} />
           {topCategory && (
             <p className="mt-3 text-xs text-muted-foreground">
               Top category:{" "}

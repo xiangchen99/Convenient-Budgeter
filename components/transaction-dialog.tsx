@@ -36,13 +36,26 @@ export function TransactionDialog({
   categories,
   transaction,
   trigger,
+  open,
+  onOpenChange,
 }: {
   categories: Category[];
   transaction?: TransactionWithCategory;
-  trigger?: "button" | "icon" | "floating";
+  trigger?: "button" | "icon" | "floating" | "none";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const isEdit = Boolean(transaction);
-  const [open, setOpen] = React.useState(false);
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const isControlled = open !== undefined;
+  const dialogOpen = isControlled ? open : internalOpen;
+  const setDialogOpen = React.useCallback(
+    (nextOpen: boolean) => {
+      if (!isControlled) setInternalOpen(nextOpen);
+      onOpenChange?.(nextOpen);
+    },
+    [isControlled, onOpenChange]
+  );
   const [selectedCategoryId, setSelectedCategoryId] = React.useState(
     transaction?.category_id ?? ""
   );
@@ -52,7 +65,7 @@ export function TransactionDialog({
   );
 
   useEffect(() => {
-    if (!open) return;
+    if (!dialogOpen) return;
     if (transaction) {
       setSelectedCategoryId(transaction.category_id ?? "");
       return;
@@ -61,7 +74,7 @@ export function TransactionDialog({
     if (lastCategoryId && categories.some((c) => c.id === lastCategoryId)) {
       setSelectedCategoryId(lastCategoryId);
     }
-  }, [categories, open, transaction]);
+  }, [categories, dialogOpen, transaction]);
 
   useEffect(() => {
     if (!state.ok) return;
@@ -70,14 +83,14 @@ export function TransactionDialog({
     } else {
       window.localStorage.removeItem(LAST_CATEGORY_KEY);
     }
-    setOpen(false);
-  }, [selectedCategoryId, state.ok]);
+    setDialogOpen(false);
+  }, [selectedCategoryId, setDialogOpen, state.ok]);
 
   return (
     <>
       {trigger === "icon" ? (
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => setDialogOpen(true)}
           aria-label="Edit expense"
           className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
@@ -85,23 +98,23 @@ export function TransactionDialog({
         </button>
       ) : trigger === "floating" ? (
         <Button
-          onClick={() => setOpen(true)}
+          onClick={() => setDialogOpen(true)}
           className="fixed bottom-20 right-4 z-30 h-14 rounded-full px-5 shadow-lg sm:hidden"
           aria-label="Add expense"
         >
           <Plus className="size-5" />
           Add
         </Button>
-      ) : (
-        <Button onClick={() => setOpen(true)} className="gap-1.5">
+      ) : trigger === "none" ? null : (
+        <Button onClick={() => setDialogOpen(true)} className="gap-1.5">
           <Plus className="size-4" />
           Add expense
         </Button>
       )}
 
       <Modal
-        open={open}
-        onClose={() => setOpen(false)}
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
         title={isEdit ? "Edit expense" : "Add expense"}
       >
         <form action={formAction} className="space-y-4">

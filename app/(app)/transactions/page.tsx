@@ -6,6 +6,10 @@ import { getBudgetRange } from "@/lib/budgets";
 import { TransactionDialog } from "@/components/transaction-dialog";
 import { DeleteTransactionButton } from "@/components/delete-transaction-button";
 import { RepeatTransactionButton } from "@/components/repeat-transaction-button";
+import {
+  EditTransactionButton,
+  TransactionEditManager,
+} from "@/components/transaction-edit-manager";
 import { MonthNav } from "@/components/month-nav";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,7 +43,9 @@ export default async function TransactionsPage({
 
   const transactionQuery = supabase
     .from("transactions")
-    .select("*, category:categories(id, name, color)")
+    .select(
+      "id, user_id, category_id, amount, occurred_on, note, created_at, category:categories(id, name, color)"
+    )
     .gte("occurred_on", monthRange.startStr)
     .lte("occurred_on", monthRange.endStr)
     .order("occurred_on", { ascending: false })
@@ -52,7 +58,10 @@ export default async function TransactionsPage({
   }
 
   const [{ data: categories }, { data: transactions }] = await Promise.all([
-    supabase.from("categories").select("*").order("name"),
+    supabase
+      .from("categories")
+      .select("id, user_id, name, color, created_at")
+      .order("name"),
     transactionQuery,
   ]);
 
@@ -164,11 +173,7 @@ export default async function TransactionsPage({
                       </span>
                       <div className="flex items-center">
                         <RepeatTransactionButton id={t.id} />
-                        <TransactionDialog
-                          categories={cats}
-                          transaction={t}
-                          trigger="icon"
-                        />
+                        <EditTransactionButton transaction={t} />
                         <DeleteTransactionButton id={t.id} />
                       </div>
                     </div>
@@ -179,6 +184,7 @@ export default async function TransactionsPage({
           })}
         </div>
       )}
+      <TransactionEditManager categories={cats} />
       <TransactionDialog categories={cats} trigger="floating" />
     </div>
   );

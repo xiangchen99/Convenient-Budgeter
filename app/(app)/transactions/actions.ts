@@ -97,3 +97,29 @@ export async function deleteTransaction(formData: FormData): Promise<void> {
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
 }
+
+export async function repeatTransaction(formData: FormData): Promise<void> {
+  const { supabase, user } = await requireUser();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const { data: original } = await supabase
+    .from("transactions")
+    .select("amount, category_id, note")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!original) return;
+
+  await supabase.from("transactions").insert({
+    user_id: user.id,
+    amount: Number(original.amount),
+    category_id: original.category_id,
+    note: original.note,
+    occurred_on: new Date().toISOString().slice(0, 10),
+  });
+
+  revalidatePath("/transactions");
+  revalidatePath("/dashboard");
+}

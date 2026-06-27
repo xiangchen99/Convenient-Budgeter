@@ -7,10 +7,14 @@ export function MonthNav({
   month,
   label,
   isCurrent,
+  basePath = "/dashboard",
+  params,
 }: {
   month: string; // YYYY-MM
   label: string;
   isCurrent: boolean;
+  basePath?: string;
+  params?: Record<string, string | undefined>;
 }) {
   const router = useRouter();
 
@@ -18,7 +22,12 @@ export function MonthNav({
     const [y, m] = month.split("-").map(Number);
     const d = new Date(y, m - 1 + delta, 1);
     const next = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    router.push(`/dashboard?month=${next}`);
+    const nextParams = new URLSearchParams();
+    nextParams.set("month", next);
+    for (const [key, value] of Object.entries(params ?? {})) {
+      if (value) nextParams.set(key, value);
+    }
+    router.push(`${basePath}?${nextParams.toString()}`);
   };
 
   return (

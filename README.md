@@ -7,11 +7,12 @@ Built with Next.js (App Router) + TypeScript, Tailwind CSS, Supabase (Postgres +
 ## Features (v1)
 
 - Email + password authentication (Supabase Auth)
-- Add / edit / delete expenses (amount, category, date, note)
+- Fast mobile expense entry with category chips, remembered category, and a floating add button
+- Add / edit / delete / repeat expenses (amount, category, date, note)
 - Manage categories (name + color), with sensible defaults seeded on sign-up
 - Daily, weekly, and monthly total-spending budgets with graphical remaining-budget progress
 - Dashboard: budget progress, monthly total, daily average, spending-over-time area chart, spend-by-category donut, and recent activity
-- Month-by-month navigation
+- Month-by-month navigation, search, and category filters for expense history
 - Installable to an iPhone / Android home screen (standalone PWA)
 
 > AI features (natural-language expense entry, receipt parsing) are intentionally deferred to a later update.

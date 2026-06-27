@@ -14,13 +14,16 @@ export function BudgetProgressCards({
 }: {
   budgets: BudgetProgressData[];
 }) {
+  const primary = budgets.find((budget) => budget.period === "daily") ?? budgets[0];
+  const secondary = budgets.filter((budget) => budget.period !== primary?.period);
+
   return (
     <Card>
       <CardHeader className="flex-row items-start justify-between gap-3 pb-2">
         <div>
-          <CardTitle className="text-base">Budget progress</CardTitle>
+          <CardTitle className="text-base">Today&apos;s budget</CardTitle>
           <CardDescription>
-            Track how much spending room you have left.
+            Your fastest check before logging another expense.
           </CardDescription>
         </div>
         <Link
@@ -31,15 +34,24 @@ export function BudgetProgressCards({
         </Link>
       </CardHeader>
       <CardContent className="space-y-3">
-        {budgets.map((budget) => (
-          <BudgetProgressCard key={budget.period} budget={budget} />
-        ))}
+        {primary && <BudgetProgressCard budget={primary} prominent />}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {secondary.map((budget) => (
+            <BudgetProgressCard key={budget.period} budget={budget} />
+          ))}
+        </div>
       </CardContent>
     </Card>
   );
 }
 
-function BudgetProgressCard({ budget }: { budget: BudgetProgressData }) {
+function BudgetProgressCard({
+  budget,
+  prominent = false,
+}: {
+  budget: BudgetProgressData;
+  prominent?: boolean;
+}) {
   const hasBudget = budget.budgetAmount > 0;
   const clampedPercent = Math.min(budget.percentUsed, 100);
   const statusLabel = !hasBudget
@@ -49,9 +61,20 @@ function BudgetProgressCard({ budget }: { budget: BudgetProgressData }) {
       : budget.isNearLimit
         ? "Close to limit"
         : "On track";
+  const remainingLabel = budget.period === "daily" ? "today" : budget.period;
+  const mainText = !hasBudget
+    ? "Set a budget"
+    : budget.isOverBudget
+      ? `${formatCurrency(Math.abs(budget.remaining))} over ${remainingLabel}`
+      : `${formatCurrency(budget.remaining)} left ${remainingLabel}`;
 
   return (
-    <div className="rounded-xl border bg-background p-4">
+    <div
+      className={cn(
+        "rounded-xl border bg-background p-4",
+        prominent && "border-primary/30 bg-primary/5"
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold">{budget.label}</h3>
@@ -79,13 +102,12 @@ function BudgetProgressCard({ budget }: { budget: BudgetProgressData }) {
             <p className="text-xs text-muted-foreground">Remaining</p>
             <p
               className={cn(
-                "text-lg font-bold tabular-nums",
+                "font-bold tabular-nums",
+                prominent ? "text-2xl" : "text-lg",
                 budget.isOverBudget && "text-destructive"
               )}
             >
-              {hasBudget
-                ? formatCurrency(Math.max(budget.remaining, 0))
-                : "Set a budget"}
+              {mainText}
             </p>
           </div>
           <div className="text-right">

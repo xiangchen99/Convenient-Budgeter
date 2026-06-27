@@ -244,6 +244,7 @@ export default async function DashboardPage({
           )}
         </CardContent>
       </Card>
+      <TransactionDialog categories={categories ?? []} trigger="floating" />
     </div>
   );
 }

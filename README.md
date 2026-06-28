@@ -67,6 +67,20 @@ Open [http://localhost:3000](http://localhost:3000). You'll be redirected to `/l
 
 > The PWA service worker is disabled in development and only active in production builds.
 
+## Testing
+
+Run the automated test suite:
+
+```bash
+npm run test:run
+```
+
+For watch mode while developing:
+
+```bash
+npm test
+```
+
 ## Project structure
 
 ```

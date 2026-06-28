@@ -10,6 +10,7 @@ import {
   type ActionResult,
 } from "@/app/(app)/transactions/actions";
 import type { Category, TransactionWithCategory } from "@/lib/types";
+import { formatLocalDate } from "@/lib/dates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,10 +19,6 @@ import { Modal } from "@/components/ui/modal";
 
 const INITIAL: ActionResult = { error: null, ok: false };
 const LAST_CATEGORY_KEY = "convenient-budgeter:last-category-id";
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -177,7 +174,7 @@ export function TransactionDialog({
               id="occurred_on"
               name="occurred_on"
               type="date"
-              defaultValue={transaction?.occurred_on ?? todayISO()}
+              defaultValue={transaction?.occurred_on ?? formatLocalDate()}
               required
             />
           </div>

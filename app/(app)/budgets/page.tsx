@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import {
   BUDGET_PERIODS,
@@ -5,6 +6,7 @@ import {
   getBudgetRange,
 } from "@/lib/budgets";
 import type { Budget, BudgetPeriod } from "@/lib/types";
+import { LOCAL_DATE_COOKIE, parseLocalDate } from "@/lib/dates";
 import { BudgetForm } from "@/components/budget-form";
 import {
   Card,
@@ -17,8 +19,14 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function BudgetsPage() {
+  const cookieStore = await cookies();
+  const localDate =
+    parseLocalDate(cookieStore.get(LOCAL_DATE_COOKIE)?.value) ?? new Date();
   const supabase = await createClient();
-  const { data } = await supabase.from("budgets").select("*").order("period");
+  const { data } = await supabase
+    .from("budgets")
+    .select("id, user_id, period, amount, created_at, updated_at")
+    .order("period");
   const budgets = (data ?? []) as unknown as Budget[];
   const byPeriod = new Map<BudgetPeriod, Budget>(
     budgets.map((budget) => [budget.period, budget])
@@ -42,7 +50,7 @@ export default async function BudgetsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {BUDGET_PERIODS.map((period) => {
-            const range = getBudgetRange(period);
+            const range = getBudgetRange(period, localDate);
             return (
               <section
                 key={period}

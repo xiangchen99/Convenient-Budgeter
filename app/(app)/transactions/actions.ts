@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { formatLocalDate } from "@/lib/dates";
 
 export type ActionResult = { error: string | null; ok: boolean };
 
@@ -18,6 +19,11 @@ function parseAmount(raw: FormDataEntryValue | null): number | null {
   const value = Number.parseFloat(String(raw ?? ""));
   if (!Number.isFinite(value) || value < 0) return null;
   return Math.round(value * 100) / 100;
+}
+
+function parseDateString(raw: FormDataEntryValue | null): string {
+  const value = String(raw ?? "");
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : formatLocalDate();
 }
 
 export async function createTransaction(
@@ -101,6 +107,7 @@ export async function deleteTransaction(formData: FormData): Promise<void> {
 export async function repeatTransaction(formData: FormData): Promise<void> {
   const { supabase, user } = await requireUser();
   const id = String(formData.get("id") ?? "");
+  const occurred_on = parseDateString(formData.get("occurred_on"));
   if (!id) return;
 
   const { data: original } = await supabase
@@ -117,7 +124,7 @@ export async function repeatTransaction(formData: FormData): Promise<void> {
     amount: Number(original.amount),
     category_id: original.category_id,
     note: original.note,
-    occurred_on: new Date().toISOString().slice(0, 10),
+    occurred_on,
   });
 
   revalidatePath("/transactions");

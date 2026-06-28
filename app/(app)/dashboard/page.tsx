@@ -1,13 +1,20 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import {
   format,
   getDaysInMonth,
-  parseISO,
 } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import type { Budget, BudgetPeriod, TransactionWithCategory } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { calculateBudgetProgress, getBudgetRange } from "@/lib/budgets";
+import {
+  formatLocalMonth,
+  LOCAL_DATE_COOKIE,
+  LOCAL_MONTH_COOKIE,
+  parseLocalDate,
+  parseLocalMonth,
+} from "@/lib/dates";
 import {
   Card,
   CardContent,
@@ -42,18 +49,24 @@ export default async function DashboardPage({
   searchParams: Promise<{ month?: string }>;
 }) {
   const params = await searchParams;
-  const now = new Date();
-  const currentMonth = isoMonth(now);
+  const cookieStore = await cookies();
+  const localDate =
+    parseLocalDate(cookieStore.get(LOCAL_DATE_COOKIE)?.value) ?? new Date();
+  const localMonth =
+    cookieStore.get(LOCAL_MONTH_COOKIE)?.value ?? formatLocalMonth(localDate);
+  const currentMonth = /^\d{4}-\d{2}$/.test(localMonth)
+    ? localMonth
+    : isoMonth(localDate);
 
   const monthParam =
     params.month && /^\d{4}-\d{2}$/.test(params.month)
       ? params.month
       : currentMonth;
 
-  const monthDate = parseISO(`${monthParam}-01`);
+  const monthDate = parseLocalMonth(monthParam) ?? localDate;
   const monthRange = getBudgetRange("monthly", monthDate);
-  const dayRange = getBudgetRange("daily", now);
-  const weekRange = getBudgetRange("weekly", now);
+  const dayRange = getBudgetRange("daily", localDate);
+  const weekRange = getBudgetRange("weekly", localDate);
   const startStr = monthRange.startStr;
   const endStr = monthRange.endStr;
 
@@ -236,7 +249,7 @@ export default async function DashboardPage({
                       {t.category?.name ?? "Uncategorized"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {format(parseISO(t.occurred_on), "MMM d")}
+                      {format(parseLocalDate(t.occurred_on) ?? localDate, "MMM d")}
                       {t.note ? ` · ${t.note}` : ""}
                     </p>
                   </div>

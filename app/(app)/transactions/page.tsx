@@ -1,8 +1,16 @@
+import { cookies } from "next/headers";
 import { format, parseISO } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import type { Category, TransactionWithCategory } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { getBudgetRange } from "@/lib/budgets";
+import {
+  formatLocalMonth,
+  LOCAL_DATE_COOKIE,
+  LOCAL_MONTH_COOKIE,
+  parseLocalDate,
+  parseLocalMonth,
+} from "@/lib/dates";
 import { TransactionDialog } from "@/components/transaction-dialog";
 import { DeleteTransactionButton } from "@/components/delete-transaction-button";
 import { RepeatTransactionButton } from "@/components/repeat-transaction-button";
@@ -28,13 +36,19 @@ export default async function TransactionsPage({
   searchParams: Promise<{ month?: string; q?: string; category?: string }>;
 }) {
   const params = await searchParams;
-  const now = new Date();
-  const currentMonth = isoMonth(now);
+  const cookieStore = await cookies();
+  const localDate =
+    parseLocalDate(cookieStore.get(LOCAL_DATE_COOKIE)?.value) ?? new Date();
+  const localMonth =
+    cookieStore.get(LOCAL_MONTH_COOKIE)?.value ?? formatLocalMonth(localDate);
+  const currentMonth = /^\d{4}-\d{2}$/.test(localMonth)
+    ? localMonth
+    : isoMonth(localDate);
   const monthParam =
     params.month && /^\d{4}-\d{2}$/.test(params.month)
       ? params.month
       : currentMonth;
-  const monthDate = parseISO(`${monthParam}-01`);
+  const monthDate = parseLocalMonth(monthParam) ?? localDate;
   const monthRange = getBudgetRange("monthly", monthDate);
   const search = String(params.q ?? "").trim();
   const categoryFilter = String(params.category ?? "");

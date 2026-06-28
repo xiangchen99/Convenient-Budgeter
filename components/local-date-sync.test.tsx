@@ -1,5 +1,5 @@
 import { render, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LocalDateSync } from "@/components/local-date-sync";
 import {
   formatLocalDate,
@@ -24,15 +24,26 @@ function readCookie(name: string) {
     ?.split("=")[1];
 }
 
+function clearCookie(name: string) {
+  document.cookie = `${name}=; path=/; max-age=0`;
+}
+
 describe("LocalDateSync", () => {
-  it("writes local date, month, and timezone cookies and refreshes once", async () => {
+  beforeEach(() => {
+    refresh.mockClear();
+    clearCookie(LOCAL_DATE_COOKIE);
+    clearCookie(LOCAL_MONTH_COOKIE);
+    clearCookie(LOCAL_TIME_ZONE_COOKIE);
+  });
+
+  it("writes local date, month, and timezone cookies without refreshing on first sync", async () => {
     render(<LocalDateSync />);
 
     await waitFor(() => {
       expect(readCookie(LOCAL_DATE_COOKIE)).toBe(formatLocalDate());
       expect(readCookie(LOCAL_MONTH_COOKIE)).toBe(formatLocalMonth());
       expect(readCookie(LOCAL_TIME_ZONE_COOKIE)).toBeTruthy();
-      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(refresh).not.toHaveBeenCalled();
     });
   });
 

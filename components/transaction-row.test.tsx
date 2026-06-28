@@ -25,14 +25,12 @@ const transaction: TransactionWithCategory = {
 };
 
 describe("TransactionRow", () => {
-  it("opens the edit flow when the row is tapped", () => {
+  it("opens the edit flow when the edit button is tapped", () => {
     const listener = vi.fn();
     window.addEventListener("convenient-budgeter:edit-transaction", listener);
 
     render(<TransactionRow transaction={transaction} />);
-    fireEvent.click(
-      screen.getByRole("button", { name: /edit food & dining expense/i })
-    );
+    fireEvent.click(screen.getByRole("button", { name: /edit expense/i }));
 
     expect(listener).toHaveBeenCalledTimes(1);
     expect(listener.mock.calls[0][0].detail).toEqual(transaction);

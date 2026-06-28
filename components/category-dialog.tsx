@@ -40,12 +40,25 @@ function SubmitButton({ label }: { label: string }) {
 export function CategoryDialog({
   category,
   trigger,
+  open,
+  onOpenChange,
 }: {
   category?: Category;
-  trigger?: "button" | "icon";
+  trigger?: "button" | "icon" | "none";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const isEdit = Boolean(category);
-  const [open, setOpen] = React.useState(false);
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const isControlled = open !== undefined;
+  const dialogOpen = isControlled ? open : internalOpen;
+  const setDialogOpen = React.useCallback(
+    (nextOpen: boolean) => {
+      if (!isControlled) setInternalOpen(nextOpen);
+      onOpenChange?.(nextOpen);
+    },
+    [isControlled, onOpenChange]
+  );
   const [color, setColor] = React.useState(category?.color ?? PRESET_COLORS[0]);
   const [state, formAction] = useActionState(
     isEdit ? updateCategory : createCategory,
@@ -53,29 +66,37 @@ export function CategoryDialog({
   );
 
   useEffect(() => {
-    if (state.ok) setOpen(false);
-  }, [state.ok]);
+    if (state.ok) setDialogOpen(false);
+  }, [setDialogOpen, state.ok]);
+
+  useEffect(() => {
+    if (dialogOpen) setColor(category?.color ?? PRESET_COLORS[0]);
+  }, [category?.color, dialogOpen]);
 
   return (
     <>
       {trigger === "icon" ? (
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => setDialogOpen(true)}
           aria-label="Edit category"
           className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <Pencil className="size-4" />
         </button>
-      ) : (
-        <Button onClick={() => setOpen(true)} className="gap-1.5">
+      ) : trigger === "none" ? null : (
+        <Button
+          type="button"
+          onClick={() => setDialogOpen(true)}
+          className="gap-1.5"
+        >
           <Plus className="size-4" />
           Add category
         </Button>
       )}
 
       <Modal
-        open={open}
-        onClose={() => setOpen(false)}
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
         title={isEdit ? "Edit category" : "Add category"}
       >
         <form action={formAction} className="space-y-4">

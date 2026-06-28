@@ -1,35 +1,14 @@
-"use client";
-
 import type { TransactionWithCategory } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
-import { DeleteTransactionButton } from "@/components/delete-transaction-button";
-import { RepeatTransactionButton } from "@/components/repeat-transaction-button";
-import {
-  EditTransactionButton,
-  openTransactionEditor,
-} from "@/components/transaction-edit-manager";
+import { TransactionRowActions } from "@/components/transaction-row-actions";
 
 export function TransactionRow({
   transaction,
 }: {
   transaction: TransactionWithCategory;
 }) {
-  const openEditor = () => openTransactionEditor(transaction);
-
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={openEditor}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          openEditor();
-        }
-      }}
-      aria-label={`Edit ${transaction.category?.name ?? "Uncategorized"} expense`}
-      className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-    >
+    <div className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/50">
       <span
         className="size-2.5 shrink-0 rounded-full"
         style={{
@@ -54,15 +33,7 @@ export function TransactionRow({
       <span className="text-sm font-semibold tabular-nums">
         {formatCurrency(Number(transaction.amount))}
       </span>
-      <div
-        className="flex items-center"
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => event.stopPropagation()}
-      >
-        <RepeatTransactionButton id={transaction.id} />
-        <EditTransactionButton transaction={transaction} />
-        <DeleteTransactionButton id={transaction.id} />
-      </div>
+      <TransactionRowActions transaction={transaction} />
     </div>
   );
 }

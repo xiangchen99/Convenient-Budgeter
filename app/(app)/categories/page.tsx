@@ -1,15 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
-import type { Category } from "@/lib/types";
+import { getCategories } from "@/lib/app-data";
 import { CategoryDialog } from "@/components/category-dialog";
-import { DeleteCategoryButton } from "@/components/delete-category-button";
+import { CategoryList } from "@/components/category-list";
 import { Card } from "@/components/ui/card";
 
-export const dynamic = "force-dynamic";
-
 export default async function CategoriesPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.from("categories").select("*").order("name");
-  const categories = (data ?? []) as Category[];
+  const categories = await getCategories();
 
   return (
     <div className="space-y-5">
@@ -31,23 +26,7 @@ export default async function CategoriesPage() {
           </p>
         </Card>
       ) : (
-        <Card className="divide-y">
-          {categories.map((c) => (
-            <div key={c.id} className="flex items-center gap-3 px-4 py-3">
-              <span
-                className="size-4 shrink-0 rounded-full"
-                style={{ backgroundColor: c.color }}
-              />
-              <span className="flex-1 truncate text-sm font-medium">
-                {c.name}
-              </span>
-              <div className="flex items-center">
-                <CategoryDialog category={c} trigger="icon" />
-                <DeleteCategoryButton id={c.id} />
-              </div>
-            </div>
-          ))}
-        </Card>
+        <CategoryList categories={categories} />
       )}
     </div>
   );

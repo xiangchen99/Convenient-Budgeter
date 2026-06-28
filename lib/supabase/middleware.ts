@@ -6,6 +6,7 @@ type CookieToSet = { name: string; value: string; options?: CookieOptions };
 const PUBLIC_ROUTES = ["/login", "/signup", "/auth"];
 
 export async function updateSession(request: NextRequest) {
+  const { pathname } = request.nextUrl;
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -29,22 +30,20 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const hasUser = Boolean(claimsData?.claims?.sub);
 
-  const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 
-  if (!user && !isPublic) {
+  if (!hasUser && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && (pathname === "/login" || pathname === "/signup")) {
+  if (hasUser && (pathname === "/login" || pathname === "/signup")) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

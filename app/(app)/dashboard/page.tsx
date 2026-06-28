@@ -6,6 +6,7 @@ import {
   subDays,
 } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
+import { getBudgets, getCategories } from "@/lib/app-data";
 import type { Budget, BudgetPeriod, TransactionWithCategory } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { calculateBudgetProgress, getBudgetRange } from "@/lib/budgets";
@@ -35,9 +36,7 @@ import {
   type CategorySlice,
 } from "@/components/charts/lazy-dashboard-charts";
 import { BudgetProgressCards } from "@/components/charts/budget-progress";
-import { TransactionDialog } from "@/components/transaction-dialog";
-
-export const dynamic = "force-dynamic";
+import { LazyTransactionDialog } from "@/components/lazy-transaction-dialog";
 
 const BUDGET_PERIODS: BudgetPeriod[] = ["daily", "weekly", "monthly"];
 
@@ -90,30 +89,38 @@ export default async function DashboardPage({
 
   const supabase = await createClient();
   const [
-    { data: categories },
-    { data: budgetData },
-    { data: txnData },
+    categories,
+    budgets,
+    { data: rangeTxnData },
+    { data: carryoverTxnData },
   ] = await Promise.all([
+    getCategories(),
+    getBudgets(),
     supabase
-      .from("categories")
-      .select("id, user_id, name, color, created_at")
-      .order("name"),
-    supabase
-      .from("budgets")
-      .select("id, user_id, period, amount, created_at, updated_at"),
+      .from("transactions")
+      .select(
+        "id, user_id, category_id, amount, occurred_on, split_days, note, created_at, category:categories(id, name, color)"
+      )
+      .gte("occurred_on", formatLocalDate(earliestRangeStart))
+      .lte("occurred_on", allocationQueryEnd)
+      .order("occurred_on", { ascending: false })
+      .order("created_at", { ascending: false }),
     supabase
       .from("transactions")
       .select(
         "id, user_id, category_id, amount, occurred_on, split_days, note, created_at, category:categories(id, name, color)"
       )
       .gte("occurred_on", allocationQueryStart)
-      .lte("occurred_on", allocationQueryEnd)
+      .lt("occurred_on", formatLocalDate(earliestRangeStart))
+      .gt("split_days", 1)
       .order("occurred_on", { ascending: false })
       .order("created_at", { ascending: false }),
   ]);
 
-  const txns = (txnData ?? []) as unknown as TransactionWithCategory[];
-  const budgets = (budgetData ?? []) as unknown as Budget[];
+  const txns = [
+    ...((rangeTxnData ?? []) as unknown as TransactionWithCategory[]),
+    ...((carryoverTxnData ?? []) as unknown as TransactionWithCategory[]),
+  ];
   const budgetsByPeriod = new Map<BudgetPeriod, Budget>(
     budgets.map((budget) => [budget.period, budget])
   );
@@ -199,7 +206,7 @@ export default async function DashboardPage({
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Dashboard</h1>
-        <TransactionDialog categories={categories ?? []} />
+        <LazyTransactionDialog categories={categories} trigger="both" />
       </div>
 
       <BudgetProgressCards budgets={budgetProgress} />
@@ -290,7 +297,6 @@ export default async function DashboardPage({
           )}
         </CardContent>
       </Card>
-      <TransactionDialog categories={categories ?? []} trigger="floating" />
     </div>
   );
 }

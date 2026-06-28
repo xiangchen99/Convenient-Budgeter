@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { format, parseISO } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
-import type { Category, TransactionWithCategory } from "@/lib/types";
+import { getCategories } from "@/lib/app-data";
+import type { TransactionWithCategory } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { getBudgetRange } from "@/lib/budgets";
 import {
@@ -11,16 +12,14 @@ import {
   parseLocalDate,
   parseLocalMonth,
 } from "@/lib/dates";
-import { TransactionDialog } from "@/components/transaction-dialog";
-import { TransactionEditManager } from "@/components/transaction-edit-manager";
+import { LazyTransactionDialog } from "@/components/lazy-transaction-dialog";
+import { LazyTransactionEditManager } from "@/components/lazy-transaction-edit-manager";
 import { TransactionRow } from "@/components/transaction-row";
 import { MonthNav } from "@/components/month-nav";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-
-export const dynamic = "force-dynamic";
 
 function isoMonth(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -67,15 +66,12 @@ export default async function TransactionsPage({
     transactionQuery.eq("category_id", categoryFilter);
   }
 
-  const [{ data: categories }, { data: transactions }] = await Promise.all([
-    supabase
-      .from("categories")
-      .select("id, user_id, name, color, created_at")
-      .order("name"),
+  const [categories, { data: transactions }] = await Promise.all([
+    getCategories(),
     transactionQuery,
   ]);
 
-  const cats = (categories ?? []) as Category[];
+  const cats = categories;
   const monthTxns = (transactions ?? []) as unknown as TransactionWithCategory[];
   const txns = search
     ? monthTxns.filter((t) => {
@@ -101,7 +97,7 @@ export default async function TransactionsPage({
             {format(monthDate, "MMMM yyyy")} · {formatCurrency(monthTotal)}
           </p>
         </div>
-        <TransactionDialog categories={cats} />
+        <LazyTransactionDialog categories={cats} trigger="both" />
       </div>
 
       <Card className="space-y-4 p-4">
@@ -166,8 +162,7 @@ export default async function TransactionsPage({
           })}
         </div>
       )}
-      <TransactionEditManager categories={cats} />
-      <TransactionDialog categories={cats} trigger="floating" />
+      <LazyTransactionEditManager categories={cats} />
     </div>
   );
 }

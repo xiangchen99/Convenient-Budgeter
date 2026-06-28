@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import dynamic from "next/dynamic";
 
 export type DailyPoint = { label: string; amount: number };
@@ -33,11 +34,51 @@ const SpendByCategory = dynamic(
 );
 
 export function LazySpendOverTime({ data }: { data: DailyPoint[] }) {
-  return <SpendOverTime data={data} />;
+  return (
+    <LoadWhenVisible fallback={<ChartSkeleton label="Loading spending chart..." />}>
+      <SpendOverTime data={data} />
+    </LoadWhenVisible>
+  );
 }
 
 export function LazySpendByCategory({ data }: { data: CategorySlice[] }) {
-  return <SpendByCategory data={data} />;
+  return (
+    <LoadWhenVisible fallback={<ChartSkeleton label="Loading category chart..." />}>
+      <SpendByCategory data={data} />
+    </LoadWhenVisible>
+  );
+}
+
+function LoadWhenVisible({
+  children,
+  fallback,
+}: {
+  children: React.ReactNode;
+  fallback: React.ReactNode;
+}) {
+  const [isVisible, setIsVisible] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (isVisible) return;
+    const node = ref.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isVisible]);
+
+  return <div ref={ref}>{isVisible ? children : fallback}</div>;
 }
 
 function ChartSkeleton({ label }: { label: string }) {

@@ -25,27 +25,44 @@ function setCookie(name: string, value: string) {
   )}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}; samesite=lax`;
 }
 
+function cookieValueChanged(storedValue: string | undefined, nextValue: string) {
+  return storedValue !== undefined && decodeURIComponent(storedValue) !== nextValue;
+}
+
 export function LocalDateSync() {
   const router = useRouter();
 
   React.useEffect(() => {
     const sync = () => {
+      if (document.visibilityState === "hidden") return;
+
       const localDate = formatLocalDate();
       const localMonth = formatLocalMonth();
       const timeZone =
         Intl.DateTimeFormat().resolvedOptions().timeZone || "local";
+      const storedDate = getCookie(LOCAL_DATE_COOKIE);
+      const storedMonth = getCookie(LOCAL_MONTH_COOKIE);
+      const storedTimeZone = getCookie(LOCAL_TIME_ZONE_COOKIE);
 
       const changed =
-        getCookie(LOCAL_DATE_COOKIE) !== localDate ||
-        getCookie(LOCAL_MONTH_COOKIE) !== localMonth ||
-        decodeURIComponent(getCookie(LOCAL_TIME_ZONE_COOKIE) ?? "") !== timeZone;
+        decodeURIComponent(storedDate ?? "") !== localDate ||
+        decodeURIComponent(storedMonth ?? "") !== localMonth ||
+        decodeURIComponent(storedTimeZone ?? "") !== timeZone;
 
       if (!changed) return;
 
       setCookie(LOCAL_DATE_COOKIE, localDate);
       setCookie(LOCAL_MONTH_COOKIE, localMonth);
       setCookie(LOCAL_TIME_ZONE_COOKIE, timeZone);
-      router.refresh();
+
+      const existingLocalContextChanged =
+        cookieValueChanged(storedDate, localDate) ||
+        cookieValueChanged(storedMonth, localMonth) ||
+        cookieValueChanged(storedTimeZone, timeZone);
+
+      if (existingLocalContextChanged) {
+        router.refresh();
+      }
     };
 
     sync();

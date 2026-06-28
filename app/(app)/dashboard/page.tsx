@@ -3,12 +3,18 @@ import { cookies } from "next/headers";
 import {
   format,
   getDaysInMonth,
+  subDays,
 } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import type { Budget, BudgetPeriod, TransactionWithCategory } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { calculateBudgetProgress, getBudgetRange } from "@/lib/budgets";
 import {
+  getTransactionAllocationsInRange,
+  sumAllocations,
+} from "@/lib/allocations";
+import {
+  formatLocalDate,
   formatLocalMonth,
   LOCAL_DATE_COOKIE,
   LOCAL_MONTH_COOKIE,
@@ -39,10 +45,6 @@ function isoMonth(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function sumAmounts(rows: { amount: number | string }[] | null) {
-  return (rows ?? []).reduce((sum, row) => sum + Number(row.amount), 0);
-}
-
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -69,14 +71,28 @@ export default async function DashboardPage({
   const weekRange = getBudgetRange("weekly", localDate);
   const startStr = monthRange.startStr;
   const endStr = monthRange.endStr;
+  const earliestRangeStart = new Date(
+    Math.min(
+      monthRange.start.getTime(),
+      dayRange.start.getTime(),
+      weekRange.start.getTime()
+    )
+  );
+  const latestRangeEnd = new Date(
+    Math.max(
+      monthRange.end.getTime(),
+      dayRange.end.getTime(),
+      weekRange.end.getTime()
+    )
+  );
+  const allocationQueryStart = formatLocalDate(subDays(earliestRangeStart, 364));
+  const allocationQueryEnd = formatLocalDate(latestRangeEnd);
 
   const supabase = await createClient();
   const [
     { data: categories },
     { data: budgetData },
     { data: txnData },
-    { data: dayTxnData },
-    { data: weekTxnData },
   ] = await Promise.all([
     supabase
       .from("categories")
@@ -88,22 +104,12 @@ export default async function DashboardPage({
     supabase
       .from("transactions")
       .select(
-        "id, user_id, category_id, amount, occurred_on, note, created_at, category:categories(id, name, color)"
+        "id, user_id, category_id, amount, occurred_on, split_days, note, created_at, category:categories(id, name, color)"
       )
-      .gte("occurred_on", startStr)
-      .lte("occurred_on", endStr)
+      .gte("occurred_on", allocationQueryStart)
+      .lte("occurred_on", allocationQueryEnd)
       .order("occurred_on", { ascending: false })
       .order("created_at", { ascending: false }),
-    supabase
-      .from("transactions")
-      .select("amount")
-      .gte("occurred_on", dayRange.startStr)
-      .lte("occurred_on", dayRange.endStr),
-    supabase
-      .from("transactions")
-      .select("amount")
-      .gte("occurred_on", weekRange.startStr)
-      .lte("occurred_on", weekRange.endStr),
   ]);
 
   const txns = (txnData ?? []) as unknown as TransactionWithCategory[];
@@ -112,16 +118,38 @@ export default async function DashboardPage({
     budgets.map((budget) => [budget.period, budget])
   );
 
-  // Monthly total + count
-  const monthTotal = txns.reduce((sum, t) => sum + Number(t.amount), 0);
-  const count = txns.length;
+  const monthAllocations = getTransactionAllocationsInRange(
+    txns,
+    startStr,
+    endStr
+  );
+  const dayAllocations = getTransactionAllocationsInRange(
+    txns,
+    dayRange.startStr,
+    dayRange.endStr
+  );
+  const weekAllocations = getTransactionAllocationsInRange(
+    txns,
+    weekRange.startStr,
+    weekRange.endStr
+  );
+  const displayTxns = txns.filter(
+    (transaction) =>
+      transaction.occurred_on >= startStr && transaction.occurred_on <= endStr
+  );
+
+  // Monthly allocation total + original purchase count
+  const monthTotal = sumAllocations(monthAllocations);
+  const count = displayTxns.length;
 
   // Daily series
   const daysInMonth = getDaysInMonth(monthDate);
   const perDay = new Array<number>(daysInMonth).fill(0);
-  for (const t of txns) {
-    const day = Number(t.occurred_on.slice(8, 10));
-    if (day >= 1 && day <= daysInMonth) perDay[day - 1] += Number(t.amount);
+  for (const allocation of monthAllocations) {
+    const day = Number(allocation.date.slice(8, 10));
+    if (day >= 1 && day <= daysInMonth) {
+      perDay[day - 1] += allocation.amount;
+    }
   }
   const dailyPoints: DailyPoint[] = perDay.map((amount, i) => ({
     label: String(i + 1),
@@ -130,12 +158,12 @@ export default async function DashboardPage({
 
   // Category breakdown
   const byCategory = new Map<string, CategorySlice>();
-  for (const t of txns) {
-    const name = t.category?.name ?? "Uncategorized";
-    const color = t.category?.color ?? "#94a3b8";
+  for (const allocation of monthAllocations) {
+    const name = allocation.category?.name ?? "Uncategorized";
+    const color = allocation.category?.color ?? "#94a3b8";
     const existing = byCategory.get(name);
-    if (existing) existing.value += Number(t.amount);
-    else byCategory.set(name, { name, value: Number(t.amount), color });
+    if (existing) existing.value += allocation.amount;
+    else byCategory.set(name, { name, value: allocation.amount, color });
   }
   const categorySlices = [...byCategory.values()]
     .map((s) => ({ ...s, value: Math.round(s.value * 100) / 100 }))
@@ -147,10 +175,10 @@ export default async function DashboardPage({
       ? monthTotal / perDay.filter((v) => v > 0).length
       : 0;
 
-  const recent = txns.slice(0, 5);
+  const recent = displayTxns.slice(0, 5);
   const spentByPeriod: Record<BudgetPeriod, number> = {
-    daily: sumAmounts(dayTxnData),
-    weekly: sumAmounts(weekTxnData),
+    daily: sumAllocations(dayAllocations),
+    weekly: sumAllocations(weekAllocations),
     monthly: monthTotal,
   };
   const rangeByPeriod = {

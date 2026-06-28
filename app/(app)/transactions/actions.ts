@@ -26,6 +26,12 @@ function parseDateString(raw: FormDataEntryValue | null): string {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : formatLocalDate();
 }
 
+function parseSplitDays(raw: FormDataEntryValue | null): number {
+  const value = Number.parseInt(String(raw ?? "1"), 10);
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(Math.max(value, 1), 365);
+}
+
 export async function createTransaction(
   _prev: ActionResult,
   formData: FormData
@@ -35,6 +41,7 @@ export async function createTransaction(
   const amount = parseAmount(formData.get("amount"));
   const occurred_on = String(formData.get("occurred_on") ?? "");
   const categoryRaw = String(formData.get("category_id") ?? "");
+  const split_days = parseSplitDays(formData.get("split_days"));
   const note = String(formData.get("note") ?? "").trim();
 
   if (amount === null) return { error: "Enter a valid amount.", ok: false };
@@ -44,6 +51,7 @@ export async function createTransaction(
     user_id: user.id,
     amount,
     occurred_on,
+    split_days,
     category_id: categoryRaw || null,
     note: note || null,
   });
@@ -65,6 +73,7 @@ export async function updateTransaction(
   const amount = parseAmount(formData.get("amount"));
   const occurred_on = String(formData.get("occurred_on") ?? "");
   const categoryRaw = String(formData.get("category_id") ?? "");
+  const split_days = parseSplitDays(formData.get("split_days"));
   const note = String(formData.get("note") ?? "").trim();
 
   if (!id) return { error: "Missing transaction id.", ok: false };
@@ -76,6 +85,7 @@ export async function updateTransaction(
     .update({
       amount,
       occurred_on,
+      split_days,
       category_id: categoryRaw || null,
       note: note || null,
     })
@@ -112,7 +122,7 @@ export async function repeatTransaction(formData: FormData): Promise<void> {
 
   const { data: original } = await supabase
     .from("transactions")
-    .select("amount, category_id, note")
+    .select("amount, category_id, note, split_days")
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -124,6 +134,7 @@ export async function repeatTransaction(formData: FormData): Promise<void> {
     amount: Number(original.amount),
     category_id: original.category_id,
     note: original.note,
+    split_days: Number(original.split_days) || 1,
     occurred_on,
   });
 

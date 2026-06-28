@@ -12,12 +12,8 @@ import {
   parseLocalMonth,
 } from "@/lib/dates";
 import { TransactionDialog } from "@/components/transaction-dialog";
-import { DeleteTransactionButton } from "@/components/delete-transaction-button";
-import { RepeatTransactionButton } from "@/components/repeat-transaction-button";
-import {
-  EditTransactionButton,
-  TransactionEditManager,
-} from "@/components/transaction-edit-manager";
+import { TransactionEditManager } from "@/components/transaction-edit-manager";
+import { TransactionRow } from "@/components/transaction-row";
 import { MonthNav } from "@/components/month-nav";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,7 +54,7 @@ export default async function TransactionsPage({
   const transactionQuery = supabase
     .from("transactions")
     .select(
-      "id, user_id, category_id, amount, occurred_on, note, created_at, category:categories(id, name, color)"
+      "id, user_id, category_id, amount, occurred_on, split_days, note, created_at, category:categories(id, name, color)"
     )
     .gte("occurred_on", monthRange.startStr)
     .lte("occurred_on", monthRange.endStr)
@@ -162,35 +158,7 @@ export default async function TransactionsPage({
                 </div>
                 <Card className="divide-y">
                   {items.map((t) => (
-                    <div
-                      key={t.id}
-                      className="flex items-center gap-3 px-4 py-3"
-                    >
-                      <span
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{
-                          backgroundColor: t.category?.color ?? "#94a3b8",
-                        }}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">
-                          {t.category?.name ?? "Uncategorized"}
-                        </p>
-                        {t.note && (
-                          <p className="truncate text-xs text-muted-foreground">
-                            {t.note}
-                          </p>
-                        )}
-                      </div>
-                      <span className="text-sm font-semibold tabular-nums">
-                        {formatCurrency(Number(t.amount))}
-                      </span>
-                      <div className="flex items-center">
-                        <RepeatTransactionButton id={t.id} />
-                        <EditTransactionButton transaction={t} />
-                        <DeleteTransactionButton id={t.id} />
-                      </div>
-                    </div>
+                    <TransactionRow key={t.id} transaction={t} />
                   ))}
                 </Card>
               </div>

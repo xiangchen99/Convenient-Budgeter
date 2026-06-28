@@ -7,6 +7,14 @@ import { TransactionDialog } from "@/components/transaction-dialog";
 
 const EDIT_TRANSACTION_EVENT = "convenient-budgeter:edit-transaction";
 
+export function openTransactionEditor(transaction: TransactionWithCategory) {
+  window.dispatchEvent(
+    new CustomEvent<TransactionWithCategory>(EDIT_TRANSACTION_EVENT, {
+      detail: transaction,
+    })
+  );
+}
+
 export function EditTransactionButton({
   transaction,
 }: {
@@ -14,13 +22,7 @@ export function EditTransactionButton({
 }) {
   return (
     <button
-      onClick={() => {
-        window.dispatchEvent(
-          new CustomEvent<TransactionWithCategory>(EDIT_TRANSACTION_EVENT, {
-            detail: transaction,
-          })
-        );
-      }}
+      onClick={() => openTransactionEditor(transaction)}
       aria-label="Edit expense"
       className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
     >

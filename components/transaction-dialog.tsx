@@ -180,6 +180,24 @@ export function TransactionDialog({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="split_days">Split over days</Label>
+            <Input
+              id="split_days"
+              name="split_days"
+              type="number"
+              inputMode="numeric"
+              min="1"
+              max="365"
+              step="1"
+              defaultValue={transaction?.split_days ?? 1}
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Use 2 for food that lasts two days.
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="note">Note (optional)</Label>
             <Input
               id="note"

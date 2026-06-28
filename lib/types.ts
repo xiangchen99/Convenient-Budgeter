@@ -12,6 +12,7 @@ export type Transaction = {
   category_id: string | null;
   amount: number;
   occurred_on: string; // YYYY-MM-DD
+  split_days: number;
   note: string | null;
   created_at: string;
 };

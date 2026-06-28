@@ -37,6 +37,7 @@ describe("TransactionDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: /add expense/i }));
 
     expect(screen.getByLabelText("Date")).toHaveValue("2026-06-27");
+    expect(screen.getByLabelText("Split over days")).toHaveValue(1);
   });
 
   it("prefills the last-used category on quick add", async () => {
@@ -63,6 +64,7 @@ describe("TransactionDialog", () => {
           category_id: "food",
           amount: 12.5,
           occurred_on: "2026-06-15",
+          split_days: 4,
           note: "Lunch",
           created_at: "2026-06-15T12:00:00Z",
           category: {
@@ -77,5 +79,6 @@ describe("TransactionDialog", () => {
     expect(screen.getByLabelText("Date")).toHaveValue("2026-06-15");
     expect(screen.getByLabelText("Category")).toHaveValue("food");
     expect(screen.getByLabelText("Amount")).toHaveValue(12.5);
+    expect(screen.getByLabelText("Split over days")).toHaveValue(4);
   });
 });

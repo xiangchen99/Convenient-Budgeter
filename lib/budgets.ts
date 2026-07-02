@@ -1,4 +1,5 @@
 import {
+  addDays,
   endOfDay,
   endOfMonth,
   endOfWeek,
@@ -7,7 +8,8 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import type { Budget, BudgetPeriod } from "@/lib/types";
+import { parseLocalDate } from "@/lib/dates";
+import type { Budget, BudgetPeriod, WeeklyBudgetOverride } from "@/lib/types";
 
 export const BUDGET_PERIODS: BudgetPeriod[] = ["daily", "weekly", "monthly"];
 
@@ -73,6 +75,33 @@ export function getBudgetRange(
     startStr: format(start, "yyyy-MM-dd"),
     endStr: format(end, "yyyy-MM-dd"),
     label,
+  };
+}
+
+export function getWeekStartString(value: Date | string = new Date()) {
+  const date = typeof value === "string" ? parseLocalDate(value) : value;
+  const start = startOfWeek(date ?? new Date(), { weekStartsOn: 1 });
+  return format(start, "yyyy-MM-dd");
+}
+
+export function getNextWeekStartString(value: Date | string = new Date()) {
+  const date = typeof value === "string" ? parseLocalDate(value) : value;
+  return getWeekStartString(addDays(date ?? new Date(), 7));
+}
+
+export function resolveWeeklyBudget(
+  defaultBudget: Budget | null,
+  override: WeeklyBudgetOverride | null
+): Budget | null {
+  if (!override) return defaultBudget;
+
+  return {
+    id: override.id,
+    user_id: override.user_id,
+    period: "weekly",
+    amount: Number(override.amount),
+    created_at: override.created_at,
+    updated_at: override.updated_at,
   };
 }
 

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  createExpenseTemplate,
   createTransaction,
+  createTransactionFromTemplate,
   repeatTransaction,
   updateTransaction,
 } from "@/app/(app)/transactions/actions";
@@ -45,6 +47,7 @@ function makeSupabase() {
 
 describe("transaction server actions", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     insert.mockResolvedValue({ error: null });
     update.mockReturnValue({
       eq: vi.fn(() => ({
@@ -79,9 +82,30 @@ describe("transaction server actions", () => {
       amount: 12.34,
       occurred_on: "2026-06-27",
       split_days: 3,
+      weekly_budget_start: null,
       category_id: "category-1",
       note: "Meal prep",
     });
+  });
+
+  it("creates a transaction carried to the next weekly budget", async () => {
+    const supabase = makeSupabase();
+    createClient.mockResolvedValue(supabase);
+
+    const formData = new FormData();
+    formData.set("amount", "12.34");
+    formData.set("occurred_on", "2026-06-27");
+    formData.set("category_id", "category-1");
+    formData.set("split_days", "1");
+    formData.set("carry_to_next_week", "true");
+
+    await createTransaction({ error: null, ok: false }, formData);
+
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        weekly_budget_start: "2026-06-29",
+      })
+    );
   });
 
   it("updates a transaction with a clamped split_days value", async () => {
@@ -102,6 +126,7 @@ describe("transaction server actions", () => {
       amount: 12.34,
       occurred_on: "2026-06-27",
       split_days: 365,
+      weekly_budget_start: null,
       category_id: "category-1",
       note: "Meal prep",
     });
@@ -123,6 +148,7 @@ describe("transaction server actions", () => {
       category_id: "category-1",
       note: "Coffee",
       split_days: 2,
+      weekly_budget_start: null,
       occurred_on: "2026-06-27",
     });
     expect(revalidatePath).toHaveBeenCalledWith("/transactions");
@@ -160,5 +186,57 @@ describe("transaction server actions", () => {
     await repeatTransaction(formData);
 
     expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("creates a reusable expense template", async () => {
+    const supabase = makeSupabase();
+    createClient.mockResolvedValue(supabase);
+
+    const formData = new FormData();
+    formData.set("name", "Morning subway");
+    formData.set("amount", "2.90");
+    formData.set("category_id", "transport");
+    formData.set("split_days", "1");
+    formData.set("note", "Weekday commute");
+
+    await createExpenseTemplate({ error: null, ok: false }, formData);
+
+    expect(insert).toHaveBeenCalledWith({
+      user_id: "user-1",
+      name: "Morning subway",
+      amount: 2.9,
+      category_id: "transport",
+      split_days: 1,
+      note: "Weekday commute",
+    });
+  });
+
+  it("creates today's transaction from a quick expense template", async () => {
+    maybeSingle.mockResolvedValueOnce({
+      data: {
+        amount: "2.90",
+        category_id: "transport",
+        note: "Weekday commute",
+        split_days: 1,
+      },
+    });
+    const supabase = makeSupabase();
+    createClient.mockResolvedValue(supabase);
+
+    const formData = new FormData();
+    formData.set("id", "template-1");
+    formData.set("occurred_on", "2026-06-27");
+
+    await createTransactionFromTemplate(formData);
+
+    expect(insert).toHaveBeenCalledWith({
+      user_id: "user-1",
+      amount: 2.9,
+      category_id: "transport",
+      note: "Weekday commute",
+      split_days: 1,
+      weekly_budget_start: null,
+      occurred_on: "2026-06-27",
+    });
   });
 });

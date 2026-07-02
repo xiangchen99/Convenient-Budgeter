@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { format, parseISO } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
-import { getCategories } from "@/lib/app-data";
+import { getCategories, getExpenseTemplates } from "@/lib/app-data";
 import type { TransactionWithCategory } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { getBudgetRange } from "@/lib/budgets";
@@ -14,6 +14,7 @@ import {
 } from "@/lib/dates";
 import { LazyTransactionDialog } from "@/components/lazy-transaction-dialog";
 import { LazyTransactionEditManager } from "@/components/lazy-transaction-edit-manager";
+import { QuickExpenseBar } from "@/components/quick-expense-bar";
 import { TransactionRow } from "@/components/transaction-row";
 import { MonthNav } from "@/components/month-nav";
 import { Card } from "@/components/ui/card";
@@ -53,7 +54,7 @@ export default async function TransactionsPage({
   const transactionQuery = supabase
     .from("transactions")
     .select(
-      "id, user_id, category_id, amount, occurred_on, split_days, note, created_at, category:categories(id, name, color)"
+      "id, user_id, category_id, amount, occurred_on, split_days, weekly_budget_start, note, created_at, category:categories(id, name, color)"
     )
     .gte("occurred_on", monthRange.startStr)
     .lte("occurred_on", monthRange.endStr)
@@ -66,8 +67,9 @@ export default async function TransactionsPage({
     transactionQuery.eq("category_id", categoryFilter);
   }
 
-  const [categories, { data: transactions }] = await Promise.all([
+  const [categories, expenseTemplates, { data: transactions }] = await Promise.all([
     getCategories(),
+    getExpenseTemplates(),
     transactionQuery,
   ]);
 
@@ -130,6 +132,8 @@ export default async function TransactionsPage({
           </div>
         </form>
       </Card>
+
+      <QuickExpenseBar categories={cats} templates={expenseTemplates} />
 
       {txns.length === 0 ? (
         <Card className="flex flex-col items-center justify-center gap-2 p-10 text-center">

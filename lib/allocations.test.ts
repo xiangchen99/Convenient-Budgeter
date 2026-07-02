@@ -3,6 +3,7 @@ import {
   getTransactionAllocations,
   getTransactionAllocationsInRange,
   sumAllocations,
+  sumWeeklyBudgetSpending,
 } from "@/lib/allocations";
 import type { TransactionWithCategory } from "@/lib/types";
 
@@ -18,6 +19,7 @@ function transaction(
     amount,
     occurred_on: occurredOn,
     split_days: splitDays,
+    weekly_budget_start: null,
     note: "Groceries",
     created_at: "2026-06-27T12:00:00Z",
     category: {
@@ -73,5 +75,21 @@ describe("transaction allocations", () => {
       "2026-07-02",
     ]);
     expect(sumAllocations(allocations)).toBe(6);
+  });
+
+  it("counts carried expenses fully in their target weekly budget", () => {
+    const normal = transaction(14, 2, "2026-06-22");
+    const carried = {
+      ...transaction(20, 1, "2026-06-20"),
+      id: "txn-2",
+      weekly_budget_start: "2026-06-29",
+    };
+
+    expect(
+      sumWeeklyBudgetSpending([normal, carried], "2026-06-16", "2026-06-22")
+    ).toBe(7);
+    expect(
+      sumWeeklyBudgetSpending([normal, carried], "2026-06-29", "2026-07-05")
+    ).toBe(20);
   });
 });

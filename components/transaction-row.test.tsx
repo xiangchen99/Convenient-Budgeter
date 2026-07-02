@@ -15,6 +15,7 @@ const transaction: TransactionWithCategory = {
   amount: 12.5,
   occurred_on: "2026-06-27",
   split_days: 2,
+  weekly_budget_start: null,
   note: "Leftovers",
   created_at: "2026-06-27T12:00:00Z",
   category: {
@@ -46,5 +47,18 @@ describe("TransactionRow", () => {
 
     expect(listener).not.toHaveBeenCalled();
     window.removeEventListener("convenient-budgeter:edit-transaction", listener);
+  });
+
+  it("shows when an expense counts toward next week's budget", () => {
+    render(
+      <TransactionRow
+        transaction={{
+          ...transaction,
+          weekly_budget_start: "2026-06-29",
+        }}
+      />
+    );
+
+    expect(screen.getByText("Next week budget")).toBeInTheDocument();
   });
 });

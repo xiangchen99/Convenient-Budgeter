@@ -197,6 +197,23 @@ export function TransactionDialog({
             </p>
           </div>
 
+          <label className="flex items-start gap-3 rounded-lg border p-3 text-sm">
+            <input
+              name="carry_to_next_week"
+              type="checkbox"
+              value="true"
+              defaultChecked={Boolean(transaction?.weekly_budget_start)}
+              className="mt-1 size-4 rounded border-input"
+            />
+            <span>
+              <span className="font-medium">Count toward next week&apos;s budget</span>
+              <span className="block text-xs text-muted-foreground">
+                Keeps this expense on its original date, but moves the full
+                amount to next week&apos;s weekly budget.
+              </span>
+            </span>
+          </label>
+
           <div className="space-y-2">
             <Label htmlFor="note">Note (optional)</Label>
             <Input

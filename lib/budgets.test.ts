@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   calculateBudgetProgress,
   getBudgetRange,
+  getNextWeekStartString,
+  getWeekStartString,
+  resolveWeeklyBudget,
   roundMoney,
 } from "@/lib/budgets";
 import type { Budget } from "@/lib/types";
@@ -32,6 +35,16 @@ describe("budget helpers", () => {
     expect(range.startStr).toBe("2026-06-22");
     expect(range.endStr).toBe("2026-06-28");
     expect(range.label).toBe("Jun 22 - Jun 28, 2026");
+  });
+
+  it("normalizes arbitrary dates to Monday week starts", () => {
+    expect(getWeekStartString("2026-06-27")).toBe("2026-06-22");
+    expect(getWeekStartString(new Date(2026, 5, 29))).toBe("2026-06-29");
+  });
+
+  it("finds the next weekly budget start from an expense date", () => {
+    expect(getNextWeekStartString("2026-06-27")).toBe("2026-06-29");
+    expect(getNextWeekStartString("2026-06-29")).toBe("2026-07-06");
   });
 
   it("builds monthly ranges for the selected month", () => {
@@ -88,6 +101,22 @@ describe("budget helpers", () => {
     expect(progress.percentUsed).toBe(0);
     expect(progress.isNearLimit).toBe(false);
     expect(progress.isOverBudget).toBe(false);
+  });
+
+  it("uses weekly overrides ahead of the default weekly budget", () => {
+    const weeklyBudget = { ...budget(50), period: "weekly" as const };
+    const override = {
+      id: "override-1",
+      user_id: "user-1",
+      week_start: "2026-06-29",
+      amount: 20,
+      created_at: "2026-06-01T00:00:00Z",
+      updated_at: "2026-06-01T00:00:00Z",
+    };
+
+    expect(resolveWeeklyBudget(weeklyBudget, null)?.amount).toBe(50);
+    expect(resolveWeeklyBudget(weeklyBudget, override)?.amount).toBe(20);
+    expect(resolveWeeklyBudget(null, override)?.period).toBe("weekly");
   });
 
   it("rounds money to cents", () => {

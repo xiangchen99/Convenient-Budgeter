@@ -24,10 +24,19 @@ export function TransactionRow({
             {transaction.note}
           </p>
         )}
-        {transaction.split_days > 1 && (
-          <p className="text-xs font-medium text-primary">
-            Split {transaction.split_days} days
-          </p>
+        {(transaction.split_days > 1 || transaction.weekly_budget_start) && (
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {transaction.split_days > 1 && (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                Split {transaction.split_days} days
+              </span>
+            )}
+            {transaction.weekly_budget_start && (
+              <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+                Next week budget
+              </span>
+            )}
+          </div>
         )}
       </div>
       <span className="text-sm font-semibold tabular-nums">

@@ -1,13 +1,15 @@
 import { cookies } from "next/headers";
-import { getBudgets } from "@/lib/app-data";
+import { getBudgets, getWeeklyBudgetOverride } from "@/lib/app-data";
 import {
   BUDGET_PERIODS,
   BUDGET_LABELS,
   getBudgetRange,
+  getWeekStartString,
 } from "@/lib/budgets";
 import type { Budget, BudgetPeriod } from "@/lib/types";
 import { LOCAL_DATE_COOKIE, parseLocalDate } from "@/lib/dates";
 import { BudgetForm } from "@/components/budget-form";
+import { WeeklyBudgetOverrideForm } from "@/components/weekly-budget-override-form";
 import {
   Card,
   CardContent,
@@ -16,7 +18,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export default async function BudgetsPage() {
+export default async function BudgetsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string }>;
+}) {
+  const params = await searchParams;
   const cookieStore = await cookies();
   const localDate =
     parseLocalDate(cookieStore.get(LOCAL_DATE_COOKIE)?.value) ?? new Date();
@@ -24,6 +31,15 @@ export default async function BudgetsPage() {
   const byPeriod = new Map<BudgetPeriod, Budget>(
     budgets.map((budget) => [budget.period, budget])
   );
+  const selectedWeekStart = getWeekStartString(params.week ?? localDate);
+  const selectedWeekRange = getBudgetRange(
+    "weekly",
+    parseLocalDate(selectedWeekStart) ?? localDate
+  );
+  const weeklyOverride = await getWeeklyBudgetOverride(selectedWeekStart);
+  const defaultWeeklyAmount = byPeriod.get("weekly")
+    ? Number(byPeriod.get("weekly")!.amount)
+    : null;
 
   return (
     <div className="space-y-5">
@@ -58,6 +74,12 @@ export default async function BudgetsPage() {
               </section>
             );
           })}
+          <WeeklyBudgetOverrideForm
+            weekStart={selectedWeekStart}
+            rangeLabel={selectedWeekRange.label}
+            defaultAmount={defaultWeeklyAmount}
+            override={weeklyOverride}
+          />
         </CardContent>
       </Card>
     </div>

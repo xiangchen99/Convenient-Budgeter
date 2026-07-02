@@ -57,3 +57,27 @@ export function sumAllocations(allocations: Pick<TransactionAllocation, "amount"
     allocations.reduce((sum, allocation) => sum + allocation.amount, 0) * 100
   ) / 100;
 }
+
+export function sumWeeklyBudgetSpending(
+  transactions: TransactionWithCategory[],
+  weekStartStr: string,
+  weekEndStr: string
+) {
+  const normalTransactions = transactions.filter(
+    (transaction) => !transaction.weekly_budget_start
+  );
+  const carriedTransactions = transactions.filter(
+    (transaction) => transaction.weekly_budget_start === weekStartStr
+  );
+
+  return sumAllocations([
+    ...getTransactionAllocationsInRange(
+      normalTransactions,
+      weekStartStr,
+      weekEndStr
+    ),
+    ...carriedTransactions.map((transaction) => ({
+      amount: Number(transaction.amount),
+    })),
+  ]);
+}

@@ -6,12 +6,22 @@ import {
   subDays,
 } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
-import { getBudgets, getCategories } from "@/lib/app-data";
+import {
+  getBudgets,
+  getCategories,
+  getExpenseTemplates,
+  getWeeklyBudgetOverride,
+} from "@/lib/app-data";
 import type { Budget, BudgetPeriod, TransactionWithCategory } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
-import { calculateBudgetProgress, getBudgetRange } from "@/lib/budgets";
+import {
+  calculateBudgetProgress,
+  getBudgetRange,
+  resolveWeeklyBudget,
+} from "@/lib/budgets";
 import {
   getTransactionAllocationsInRange,
+  sumWeeklyBudgetSpending,
   sumAllocations,
 } from "@/lib/allocations";
 import {
@@ -37,6 +47,7 @@ import {
 } from "@/components/charts/lazy-dashboard-charts";
 import { BudgetProgressCards } from "@/components/charts/budget-progress";
 import { LazyTransactionDialog } from "@/components/lazy-transaction-dialog";
+import { QuickExpenseBar } from "@/components/quick-expense-bar";
 
 const BUDGET_PERIODS: BudgetPeriod[] = ["daily", "weekly", "monthly"];
 
@@ -91,15 +102,20 @@ export default async function DashboardPage({
   const [
     categories,
     budgets,
+    expenseTemplates,
+    weeklyBudgetOverride,
     { data: rangeTxnData },
     { data: carryoverTxnData },
+    { data: weeklyBudgetTxnData },
   ] = await Promise.all([
     getCategories(),
     getBudgets(),
+    getExpenseTemplates(),
+    getWeeklyBudgetOverride(weekRange.startStr),
     supabase
       .from("transactions")
       .select(
-        "id, user_id, category_id, amount, occurred_on, split_days, note, created_at, category:categories(id, name, color)"
+        "id, user_id, category_id, amount, occurred_on, split_days, weekly_budget_start, note, created_at, category:categories(id, name, color)"
       )
       .gte("occurred_on", formatLocalDate(earliestRangeStart))
       .lte("occurred_on", allocationQueryEnd)
@@ -108,19 +124,32 @@ export default async function DashboardPage({
     supabase
       .from("transactions")
       .select(
-        "id, user_id, category_id, amount, occurred_on, split_days, note, created_at, category:categories(id, name, color)"
+        "id, user_id, category_id, amount, occurred_on, split_days, weekly_budget_start, note, created_at, category:categories(id, name, color)"
       )
       .gte("occurred_on", allocationQueryStart)
       .lt("occurred_on", formatLocalDate(earliestRangeStart))
       .gt("split_days", 1)
       .order("occurred_on", { ascending: false })
       .order("created_at", { ascending: false }),
+    supabase
+      .from("transactions")
+      .select(
+        "id, user_id, category_id, amount, occurred_on, split_days, weekly_budget_start, note, created_at, category:categories(id, name, color)"
+      )
+      .eq("weekly_budget_start", weekRange.startStr)
+      .order("occurred_on", { ascending: false })
+      .order("created_at", { ascending: false }),
   ]);
 
-  const txns = [
+  const txnById = new Map<string, TransactionWithCategory>();
+  for (const transaction of [
     ...((rangeTxnData ?? []) as unknown as TransactionWithCategory[]),
     ...((carryoverTxnData ?? []) as unknown as TransactionWithCategory[]),
-  ];
+    ...((weeklyBudgetTxnData ?? []) as unknown as TransactionWithCategory[]),
+  ]) {
+    txnById.set(transaction.id, transaction);
+  }
+  const txns = [...txnById.values()];
   const budgetsByPeriod = new Map<BudgetPeriod, Budget>(
     budgets.map((budget) => [budget.period, budget])
   );
@@ -134,11 +163,6 @@ export default async function DashboardPage({
     txns,
     dayRange.startStr,
     dayRange.endStr
-  );
-  const weekAllocations = getTransactionAllocationsInRange(
-    txns,
-    weekRange.startStr,
-    weekRange.endStr
   );
   const displayTxns = txns.filter(
     (transaction) =>
@@ -185,7 +209,7 @@ export default async function DashboardPage({
   const recent = displayTxns.slice(0, 5);
   const spentByPeriod: Record<BudgetPeriod, number> = {
     daily: sumAllocations(dayAllocations),
-    weekly: sumAllocations(weekAllocations),
+    weekly: sumWeeklyBudgetSpending(txns, weekRange.startStr, weekRange.endStr),
     monthly: monthTotal,
   };
   const rangeByPeriod = {
@@ -196,7 +220,13 @@ export default async function DashboardPage({
   const budgetProgress = BUDGET_PERIODS.map((period) =>
     calculateBudgetProgress({
       period,
-      budget: budgetsByPeriod.get(period) ?? null,
+      budget:
+        period === "weekly"
+          ? resolveWeeklyBudget(
+              budgetsByPeriod.get("weekly") ?? null,
+              weeklyBudgetOverride
+            )
+          : budgetsByPeriod.get(period) ?? null,
       spent: spentByPeriod[period],
       rangeLabel: rangeByPeriod[period].label,
     })
@@ -210,6 +240,8 @@ export default async function DashboardPage({
       </div>
 
       <BudgetProgressCards budgets={budgetProgress} />
+
+      <QuickExpenseBar categories={categories} templates={expenseTemplates} />
 
       <Card>
         <CardContent className="space-y-3 p-4">

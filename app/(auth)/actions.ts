@@ -1,9 +1,17 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import {
+  AUTH_COOKIE_NAME,
+  deleteSession,
+  signInUser,
+  signUpUser,
+} from "@/lib/db/auth";
 
 export type AuthState = { error: string | null; message: string | null };
+
+const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
 
 export async function login(
   _prevState: AuthState,
@@ -16,11 +24,20 @@ export async function login(
     return { error: "Email and password are required.", message: null };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    return { error: error.message, message: null };
+  try {
+    const { sessionId } = await signInUser(email, password);
+    const cookieStore = await cookies();
+    cookieStore.set(AUTH_COOKIE_NAME, sessionId, {
+      path: "/",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: COOKIE_MAX_AGE,
+    });
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Failed to sign in. Please check your credentials.";
+    return { error: message, message: null };
   }
 
   redirect("/dashboard");
@@ -44,32 +61,31 @@ export async function signup(
     };
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { display_name: displayName || undefined },
-    },
-  });
-
-  if (error) {
-    return { error: error.message, message: null };
-  }
-
-  // If email confirmation is enabled, there is no active session yet.
-  if (!data.session) {
-    return {
-      error: null,
-      message: "Check your email to confirm your account, then sign in.",
-    };
+  try {
+    const { sessionId } = await signUpUser(email, password, displayName);
+    const cookieStore = await cookies();
+    cookieStore.set(AUTH_COOKIE_NAME, sessionId, {
+      path: "/",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: COOKIE_MAX_AGE,
+    });
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Failed to create account.";
+    return { error: message, message: null };
   }
 
   redirect("/dashboard");
 }
 
 export async function signOut() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  const cookieStore = await cookies();
+  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+  if (token) {
+    await deleteSession(token);
+  }
+  cookieStore.delete(AUTH_COOKIE_NAME);
   redirect("/login");
 }

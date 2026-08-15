@@ -22,6 +22,14 @@
       "bucket_name": "convenient-budgeter-incremental-cache"
     }
   ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "convenient-budgeter-db",
+      "database_id": "convenient-budgeter-db",
+      "migrations_dir": "migrations"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {

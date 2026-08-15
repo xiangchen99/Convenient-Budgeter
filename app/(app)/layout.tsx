@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser, getUserProfile } from "@/lib/supabase/server";
+import { getCurrentUser, getUserProfile } from "@/lib/db/auth";
 import { BottomNav, TopBar } from "@/components/app-nav";
 import { LocalDateSync } from "@/components/local-date-sync";
 

@@ -1,5 +1,11 @@
 import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/db/auth";
+import {
+  fetchBudgets,
+  fetchCategories,
+  fetchExpenseTemplates,
+  fetchWeeklyBudgetOverride,
+} from "@/lib/db/queries";
 import type {
   Budget,
   Category,
@@ -7,48 +13,34 @@ import type {
   WeeklyBudgetOverride,
 } from "@/lib/types";
 
-export const getCategories = cache(async function getCategories() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("categories")
-    .select("id, user_id, name, color, created_at")
-    .order("name");
-
-  return (data ?? []) as Category[];
+export const getCategories = cache(async function getCategories(): Promise<
+  Category[]
+> {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  return fetchCategories(user.id);
 });
 
-export const getBudgets = cache(async function getBudgets() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("budgets")
-    .select("id, user_id, period, amount, created_at, updated_at")
-    .order("period");
-
-  return (data ?? []) as unknown as Budget[];
+export const getBudgets = cache(async function getBudgets(): Promise<Budget[]> {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  return fetchBudgets(user.id);
 });
 
 export const getWeeklyBudgetOverride = cache(
-  async function getWeeklyBudgetOverride(weekStart: string) {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("weekly_budget_overrides")
-      .select("id, user_id, week_start, amount, created_at, updated_at")
-      .eq("week_start", weekStart)
-      .maybeSingle();
-
-    return (data ?? null) as unknown as WeeklyBudgetOverride | null;
+  async function getWeeklyBudgetOverride(
+    weekStart: string
+  ): Promise<WeeklyBudgetOverride | null> {
+    const user = await getCurrentUser();
+    if (!user) return null;
+    return fetchWeeklyBudgetOverride(user.id, weekStart);
   }
 );
 
-export const getExpenseTemplates = cache(async function getExpenseTemplates() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("expense_templates")
-    .select(
-      "id, user_id, name, category_id, amount, split_days, note, sort_order, created_at, updated_at, category:categories(id, name, color)"
-    )
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
-
-  return (data ?? []) as unknown as ExpenseTemplateWithCategory[];
-});
+export const getExpenseTemplates = cache(
+  async function getExpenseTemplates(): Promise<ExpenseTemplateWithCategory[]> {
+    const user = await getCurrentUser();
+    if (!user) return [];
+    return fetchExpenseTemplates(user.id);
+  }
+);

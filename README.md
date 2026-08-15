@@ -37,28 +37,22 @@ Built with Next.js (App Router) + TypeScript, Tailwind CSS, Supabase (Postgres +
 npm install
 ```
 
-### 2. Create a Supabase project
+### 2. Cloudflare D1 Database Setup
 
-1. Create a project at [supabase.com](https://supabase.com) (free tier is fine).
-2. In the SQL Editor, run the migrations in order:
-   - [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) creates the `profiles`, `categories`, and `transactions` tables, enables Row Level Security, and adds a trigger that seeds a profile + default categories for every new user.
-   - [`supabase/migrations/0002_budgets.sql`](supabase/migrations/0002_budgets.sql) creates daily, weekly, and monthly total-spending budgets with Row Level Security.
-3. (Optional, recommended for local testing) In **Authentication → Providers → Email**, you can turn off "Confirm email" so new sign-ups get an immediate session.
+1. Create the D1 database:
+   ```bash
+   npx wrangler d1 create convenient-budgeter-db
+   ```
+2. Apply migrations locally or remotely:
+   ```bash
+   # Local development
+   npx wrangler d1 migrations apply convenient-budgeter-db --local
 
-### 3. Configure environment variables
+   # Remote deployment
+   npx wrangler d1 migrations apply convenient-budgeter-db --remote
+   ```
 
-Copy the example file and fill in your project's API credentials (Supabase dashboard → **Project Settings → API**):
-
-```bash
-cp .env.local.example .env.local
-```
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
-```
-
-### 4. Run the dev server
+### 3. Run the dev server
 
 ```bash
 npm run dev
@@ -99,10 +93,10 @@ components/
   ui/                shadcn-style primitives (button, input, card, modal, ...)
   charts/            Recharts chart components
 lib/
-  supabase/          Browser, server, and middleware Supabase clients
+  db/                D1 database access, edge auth, and parameterized queries
   types.ts           Domain types
-middleware.ts        Session refresh + route protection
-supabase/migrations/ SQL schema + RLS policies
+middleware.ts        Session validation + route protection
+migrations/          Cloudflare D1 SQL schema migrations
 scripts/             PWA icon generator
 ```
 

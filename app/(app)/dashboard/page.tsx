@@ -5,7 +5,12 @@ import {
   getDaysInMonth,
   subDays,
 } from "date-fns";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/db/auth";
+import {
+  fetchCarryoverTransactions,
+  fetchTransactionsInRange,
+  fetchWeeklyBudgetTransactions,
+} from "@/lib/db/queries";
 import {
   getBudgets,
   getCategories,
@@ -98,47 +103,37 @@ export default async function DashboardPage({
   const allocationQueryStart = formatLocalDate(subDays(earliestRangeStart, 364));
   const allocationQueryEnd = formatLocalDate(latestRangeEnd);
 
-  const supabase = await createClient();
+  const user = await getCurrentUser();
   const [
     categories,
     budgets,
     expenseTemplates,
     weeklyBudgetOverride,
-    { data: rangeTxnData },
-    { data: carryoverTxnData },
-    { data: weeklyBudgetTxnData },
+    rangeTxnData,
+    carryoverTxnData,
+    weeklyBudgetTxnData,
   ] = await Promise.all([
     getCategories(),
     getBudgets(),
     getExpenseTemplates(),
     getWeeklyBudgetOverride(weekRange.startStr),
-    supabase
-      .from("transactions")
-      .select(
-        "id, user_id, category_id, amount, occurred_on, split_days, weekly_budget_start, note, created_at, category:categories(id, name, color)"
-      )
-      .gte("occurred_on", formatLocalDate(earliestRangeStart))
-      .lte("occurred_on", allocationQueryEnd)
-      .order("occurred_on", { ascending: false })
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("transactions")
-      .select(
-        "id, user_id, category_id, amount, occurred_on, split_days, weekly_budget_start, note, created_at, category:categories(id, name, color)"
-      )
-      .gte("occurred_on", allocationQueryStart)
-      .lt("occurred_on", formatLocalDate(earliestRangeStart))
-      .gt("split_days", 1)
-      .order("occurred_on", { ascending: false })
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("transactions")
-      .select(
-        "id, user_id, category_id, amount, occurred_on, split_days, weekly_budget_start, note, created_at, category:categories(id, name, color)"
-      )
-      .eq("weekly_budget_start", weekRange.startStr)
-      .order("occurred_on", { ascending: false })
-      .order("created_at", { ascending: false }),
+    user
+      ? fetchTransactionsInRange(
+          user.id,
+          formatLocalDate(earliestRangeStart),
+          allocationQueryEnd
+        )
+      : Promise.resolve([]),
+    user
+      ? fetchCarryoverTransactions(
+          user.id,
+          allocationQueryStart,
+          formatLocalDate(earliestRangeStart)
+        )
+      : Promise.resolve([]),
+    user
+      ? fetchWeeklyBudgetTransactions(user.id, weekRange.startStr)
+      : Promise.resolve([]),
   ]);
 
   const txnById = new Map<string, TransactionWithCategory>();

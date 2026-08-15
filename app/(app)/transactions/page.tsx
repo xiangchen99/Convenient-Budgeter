@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { format, parseISO } from "date-fns";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/db/auth";
+import { fetchMonthlyFilteredTransactions } from "@/lib/db/queries";
 import { getCategories, getExpenseTemplates } from "@/lib/app-data";
 import type { TransactionWithCategory } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -49,32 +50,23 @@ export default async function TransactionsPage({
   const search = String(params.q ?? "").trim();
   const categoryFilter = String(params.category ?? "");
 
-  const supabase = await createClient();
+  const user = await getCurrentUser();
 
-  const transactionQuery = supabase
-    .from("transactions")
-    .select(
-      "id, user_id, category_id, amount, occurred_on, split_days, weekly_budget_start, note, created_at, category:categories(id, name, color)"
-    )
-    .gte("occurred_on", monthRange.startStr)
-    .lte("occurred_on", monthRange.endStr)
-    .order("occurred_on", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  if (categoryFilter === "__none") {
-    transactionQuery.is("category_id", null);
-  } else if (categoryFilter) {
-    transactionQuery.eq("category_id", categoryFilter);
-  }
-
-  const [categories, expenseTemplates, { data: transactions }] = await Promise.all([
+  const [categories, expenseTemplates, transactions] = await Promise.all([
     getCategories(),
     getExpenseTemplates(),
-    transactionQuery,
+    user
+      ? fetchMonthlyFilteredTransactions(
+          user.id,
+          monthRange.startStr,
+          monthRange.endStr,
+          { categoryId: categoryFilter }
+        )
+      : Promise.resolve([]),
   ]);
 
   const cats = categories;
-  const monthTxns = (transactions ?? []) as unknown as TransactionWithCategory[];
+  const monthTxns = transactions as TransactionWithCategory[];
   const txns = search
     ? monthTxns.filter((t) => {
         const haystack = `${t.note ?? ""} ${t.category?.name ?? "Uncategorized"}`;

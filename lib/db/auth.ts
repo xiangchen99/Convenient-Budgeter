@@ -28,16 +28,17 @@ const DEFAULT_CATEGORIES = [
   { name: "Other", color: "#64748b" },
 ];
 
-function bufferToHex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer))
+function bytesToHex(bytes: Uint8Array | ArrayBuffer): string {
+  const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  return Array.from(arr)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
 
-function hexToBuffer(hex: string): Uint8Array {
+function hexToBytes(hex: string): Uint8Array {
   const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   }
   return bytes;
 }
@@ -48,9 +49,9 @@ export async function hashPassword(
 ): Promise<{ hash: string; salt: string }> {
   const enc = new TextEncoder();
   const saltBytes = existingSaltHex
-    ? hexToBuffer(existingSaltHex)
+    ? hexToBytes(existingSaltHex)
     : crypto.getRandomValues(new Uint8Array(16));
-  const saltHex = existingSaltHex ?? bufferToHex(saltBytes.buffer);
+  const saltHex = existingSaltHex ?? bytesToHex(saltBytes);
 
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -71,7 +72,7 @@ export async function hashPassword(
     256
   );
 
-  const hashHex = bufferToHex(derivedBits);
+  const hashHex = bytesToHex(derivedBits);
   return { hash: hashHex, salt: saltHex };
 }
 

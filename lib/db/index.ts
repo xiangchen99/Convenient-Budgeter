@@ -39,8 +39,9 @@ export async function getDb(): Promise<D1Database> {
 
   try {
     const cfContext = await getCloudflareContext({ async: true });
-    if (cfContext?.env?.DB) {
-      return cfContext.env.DB as D1Database;
+    const env = cfContext?.env as unknown as { DB?: D1Database } | undefined;
+    if (env?.DB) {
+      return env.DB as D1Database;
     }
   } catch {
     // getCloudflareContext might throw or be undefined outside Cloudflare runtime
